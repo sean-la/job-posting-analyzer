@@ -16,5 +16,6 @@
                 "max_days_old": 7
             }
         }
-    ]
+    ],
+    "overall_match_percentage": 75
 }

@@ -116,12 +116,12 @@ class JobBoard:
 class JobFilter:
 
     def __init__(self, job_id_dir="/var/tmp/jobs", ignore_job_id=False, bucket=None,
-                 **kwargs):
+                 overall_match_percentage=80, **kwargs):
         self._job_id_dir = job_id_dir
         self._bucket = bucket
         self._filter_rules = [
             lambda job, analysis: analysis.remote_in_canada,
-            lambda job, analysis: analysis.overall_match_percentage > 80,
+            lambda job, analysis: analysis.overall_match_percentage > overall_match_percentage,
         ]
         self._ignore_job_id = ignore_job_id
 
