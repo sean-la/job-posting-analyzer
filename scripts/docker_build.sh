@@ -4,9 +4,8 @@
 IMAGE_NAME=job-posting-analyzer
 
 # Build the Docker image
-docker build -t "$IMAGE_NAME" .
+docker build -t ghcr.io/sean-la/$IMAGE_NAME:latest .
 
-# Optionally, tag the image (for pushing to a registry)
-# docker tag $IMAGE_NAME <registry>/<username>/<image_name>:<tag>
+docker push ghcr.io/sean-la/$IMAGE_NAME:latest
 
-echo "Docker image '$IMAGE_NAME' built successfully!"
+echo "Docker image '$IMAGE_NAME' built and pushed successfully!"
