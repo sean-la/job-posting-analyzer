@@ -1,0 +1,20 @@
+{
+    "model": "gemini-1.5-flash",
+    "model_requests_per_second": 10,
+    "recipient_address": "",
+    "sender_address": "",
+    "sender_password": "",
+    "job_boards": [
+        {
+            "job_board_api_url": "https://api.adzuna.com/v1/api/jobs/ca/search/1",
+            "job_board_api_params": {
+                "app_id": "",
+                "app_key": "",
+                "what": "data scientist",
+                "where": "Vancouver",
+                "results_per_page": 20,
+                "max_days_old": 7
+            }
+        }
+    ]
+}
