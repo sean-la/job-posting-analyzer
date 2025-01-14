@@ -27,7 +27,8 @@ docker run \
   -v $HOME/.config/gcloud:/root/.config/gcloud \
   -e GOOGLE_API_KEY=$GOOGLE_API_KEY \
   -e GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json \
-  -e GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT \
+  -e GOOGLE_CLOUD_PROJECT="$GOOGLE_CLOUD_PROJECT" \
+  -e SENDER_PASSWORD="$SENDER_PASSWORD" \
   ghcr.io/sean-la/job-posting-analyzer:latest \
   --config "./data/config.json" \
   --resume "./data/resume.pdf"

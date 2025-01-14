@@ -186,6 +186,9 @@ async def main():
     with open(args.config, 'r') as f:
         config = json.load(f)
 
+    if "SENDER_PASSWORD" in os.environ:
+        config["sender_password"] = os.environ["SENDER_PASSWORD"]
+
     logging.info("Retrieving jobs...")
     job_board_configs = config["job_boards"]
     job_descriptions = []

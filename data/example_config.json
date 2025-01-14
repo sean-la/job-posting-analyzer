@@ -4,7 +4,6 @@
     "bucket": "",
     "recipient_address": "",
     "sender_address": "",
-    "sender_password": "",
     "job_boards": [
         {
             "job_board_api_url": "https://api.adzuna.com/v1/api/jobs/ca/search/1",
