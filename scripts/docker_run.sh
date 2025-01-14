@@ -27,6 +27,9 @@ fi
 # Build the docker run command
 docker run \
   -v "$DATA":/app/data\
+  -v /var/tmp/jobs:/var/tmp/jobs\
+  -e GOOGLE_API_KEY=$GOOGLE_API_KEY \
   job-posting-analyzer \
+  --mode $MODE \
   --config "./data/config.json" \
   --resume "./data/resume.pdf"
