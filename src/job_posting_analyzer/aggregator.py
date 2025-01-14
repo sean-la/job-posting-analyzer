@@ -176,8 +176,6 @@ async def main():
     parser = setup_parser()
     args = parser.parse_args()
 
-    mode = args.mode
-
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',
@@ -205,7 +203,7 @@ async def main():
 
     logging.info(f"Retrieved {len(job_descriptions)} jobs.")
 
-    job_analyzer = JobFitAnalyzerWrapper(mode, **config)
+    job_analyzer = JobFitAnalyzerWrapper(**config)
     rate_limiter = Limiter(float(config["model_requests_per_second"]))
 
     analysis_jobs = [

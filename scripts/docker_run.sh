@@ -15,8 +15,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check if required arguments are provided
-if [[ -z "$MODE" ]]; then
-  echo "Error: --mode argument is required"
+if [[ -z "$DATA" ]]; then
+  echo "Error: --data argument is required"
   exit 1
 fi
 
