@@ -4,8 +4,8 @@ import os
 import asyncio
 import argparse
 import json
-import google.auth
 import PyPDF2
+import io
 
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
@@ -21,20 +21,39 @@ from mail import send_email
 def setup_parser():
     parser = argparse.ArgumentParser(description='Description of your program')
 
-    parser.add_argument("--resume", type=str, required=True, help="path to resume")
     parser.add_argument("--config", type=str, required=True, help="path to config")
+    parser.add_argument("--resume", type=str, required=False, help="path to resume")
     parser.add_argument("--ignore_job_id", action="store_true", default=False, help="")
     
     return parser
 
 
-def parse_pdf(file_path):
-    """Extract text from PDF file."""
+def is_gcs_object(path):
+    return path[:5] == "gs://"
+
+
+def read_config(config_path):
+    if is_gcs_object(config_path):
+        config_text = read_gcs(config_path)
+        config = json.loads(config_text)
+    else:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config
+
+
+def read_pdf(pdf_path):
+    if is_gcs_object(pdf_path):
+        pdf_bytes = read_gcs(pdf_path, as_bytes=True)
+        pdf_reader = PyPDF2.PdfReader(stream=io.BytesIO(pdf_bytes))
+    else:
+        with open(pdf_path, 'rb') as f:
+            pdf_reader = PyPDF2.PdfReader(f)
+
     text = ""
-    with open(file_path, 'rb') as file:
-        pdf_reader = PyPDF2.PdfReader(file)
-        for page in pdf_reader.pages:
-            text += page.extract_text() + "\n"
+    for page in pdf_reader.pages:
+        text += page.extract_text() + "\n"
+
     return text.strip()
 
 
@@ -55,6 +74,32 @@ def create_summary(jobs):
         summary += (f"URL: {job["redirect_url"]}\n")
         summary += ("\n")
     return summary
+
+
+
+def read_gcs(uri, as_bytes=False):
+    try:
+        # Initialize a GCS client
+        storage_client = storage.Client()
+
+        # Extract bucket name and object name from the URI
+        bucket_name = uri.replace("gs://", "").split("/")[0]
+        object_name = "/".join(uri.replace("gs://", "").split("/")[1:])
+
+        # Get a reference to the bucket and object
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob(object_name)
+
+        # Download the object's contents as a string
+        if as_bytes:
+            contents = blob.download_as_bytes()
+        else:
+            contents = blob.download_as_text()
+
+        return contents
+
+    except Exception as e:
+        raise e
 
 
 
@@ -181,13 +226,15 @@ async def main():
         format='%(asctime)s - %(levelname)s - %(message)s',
     )
 
-    resume = parse_pdf(args.resume)
-
-    with open(args.config, 'r') as f:
-        config = json.load(f)
+    config = read_config(args.config)
 
     if "SENDER_PASSWORD" in os.environ:
         config["sender_password"] = os.environ["SENDER_PASSWORD"]
+
+    if args.resume:
+        config["resume"] = args.resume
+    
+    resume = read_pdf(config["resume"])
 
     logging.info("Retrieving jobs...")
     job_board_configs = config["job_boards"]
