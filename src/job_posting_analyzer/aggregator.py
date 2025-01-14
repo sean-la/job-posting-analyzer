@@ -21,8 +21,6 @@ from mail import send_email
 def setup_parser():
     parser = argparse.ArgumentParser(description='Description of your program')
 
-    parser.add_argument("--mode", type=str, choices=["local", "remote"], required=True, 
-                        default="local", help="running mode")
     parser.add_argument("--resume", type=str, required=True, help="path to resume")
     parser.add_argument("--config", type=str, required=True, help="path to config")
     parser.add_argument("--ignore_job_id", action="store_true", default=False, help="")
@@ -73,51 +71,15 @@ class JobDuplicateRemoverWrapper():
 
 class JobFitAnalyzerWrapper():
 
-    def __init__(self, mode, model="gemini-1.5-pro", cloud_run_function_url=None, **kwargs):
-        self._mode = mode
-        if self._mode == "local":
-            # Create an instance of the LLM, using the 'gemini-pro' model 
-            llm = ChatGoogleGenerativeAI(model=model)
-            self._analyzer = JobFitAnalyzer(llm)
-        elif self._mode == "remote":
-            if cloud_run_function_url is None:
-                raise Exception("cloud run function URL can't be none")
-            self._cloud_run_function_url = cloud_run_function_url
-
-
-    def _analyze_remote(self, job_description, resume):
-        # Get the service account credentials
-        credentials, _ = google.auth.default()
-
-        # Get the ID token for authentication
-        audience = self._cloud_run_function_url 
-        token = id_token.fetch_id_token(credentials, audience)
-
-        # Send the request
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "job_description": job_description,
-            "resume": resume
-        }
-        response = requests.post(
-            self._cloud_run_function_url, 
-            headers=headers, 
-            json=data
-        )
-
-        return response.text
-
-
-    def _analyze_local(self, job_description, resume):
-        analysis = self._analyzer.analyze_fit(job_description, resume)
-        return analysis
+    def __init__(self, model="gemini-1.5-pro", **kwargs):
+        # Create an instance of the LLM, using the 'gemini-pro' model 
+        llm = ChatGoogleGenerativeAI(model=model)
+        self._analyzer = JobFitAnalyzer(llm)
 
 
     async def analyze(self, job_description, resume):
-        return self._analyze_local(job_description, resume)
+        analysis = self._analyzer.analyze_fit(job_description, resume)
+        return analysis
 
 
 class JobBoard:
@@ -220,7 +182,6 @@ async def main():
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',
     )
-    logging.info(f"Mode: {mode}")
 
     resume = parse_pdf(args.resume)
 

@@ -3,10 +3,6 @@
 # Get command line arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --mode)
-      MODE="$2"
-      shift 2
-      ;;
     --data)
       DATA="$2"
       shift 2
@@ -30,6 +26,5 @@ docker run \
   -v /var/tmp/jobs:/var/tmp/jobs\
   -e GOOGLE_API_KEY=$GOOGLE_API_KEY \
   job-posting-analyzer \
-  --mode $MODE \
   --config "./data/config.json" \
   --resume "./data/resume.pdf"
