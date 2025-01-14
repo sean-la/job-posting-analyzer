@@ -43,16 +43,17 @@ def read_config(config_path):
 
 
 def read_pdf(pdf_path):
+    text = ""
     if is_gcs_object(pdf_path):
         pdf_bytes = read_gcs(pdf_path, as_bytes=True)
         pdf_reader = PyPDF2.PdfReader(stream=io.BytesIO(pdf_bytes))
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
     else:
         with open(pdf_path, 'rb') as f:
             pdf_reader = PyPDF2.PdfReader(f)
-
-    text = ""
-    for page in pdf_reader.pages:
-        text += page.extract_text() + "\n"
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
 
     return text.strip()
 
