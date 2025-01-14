@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 from google.oauth2 import id_token
 from langchain_google_genai import ChatGoogleGenerativeAI
 from asynciolimiter import Limiter
+from google.cloud import storage
 
 from analyzer import JobFitAnalyzer, JobDuplicateRemover
 from mail import send_email
@@ -152,8 +153,10 @@ class JobBoard:
 
 class JobFilter:
 
-    def __init__(self, job_id_dir="/var/tmp/jobs", ignore_job_id=False, **kwargs):
+    def __init__(self, job_id_dir="/var/tmp/jobs", ignore_job_id=False, bucket=None,
+                 **kwargs):
         self._job_id_dir = job_id_dir
+        self._bucket = bucket
         self._filter_rules = [
             lambda job, analysis: analysis.remote_in_canada,
             lambda job, analysis: analysis.overall_match_percentage > 80,
@@ -161,8 +164,7 @@ class JobFilter:
         self._ignore_job_id = ignore_job_id
 
 
-    def _job_exists(self, job):
-        job_id = job["id"]
+    def _job_exists_local(self, job_id):
         job_id_path = f"{self._job_id_dir}/{job_id}"
         if self._ignore_job_id:
             return False
@@ -173,6 +175,26 @@ class JobFilter:
             return False
         else:
             return True
+
+
+    def _job_exists_gcs(self, job_id):
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(self._bucket)
+        object_name = f"{self._job_id_dir}/{job_id}"
+        blob = bucket.blob(object_name)
+        if not blob.exists():
+            blob.upload_from_string("")
+            return False
+        else:
+            return True
+
+
+    def _job_exists(self, job):
+        job_id = job["id"]
+        if self._bucket is not None and len(self._bucket) > 0:
+            return self._job_exists_gcs(job_id)
+        else:
+            return self._job_exists_local(job_id)
 
 
     def filter_jobs(self, jobs, analyses):
@@ -205,6 +227,7 @@ async def main():
     with open(args.config, 'r') as f:
         config = json.load(f)
 
+    logging.info("Retrieving jobs...")
     job_board_configs = config["job_boards"]
     job_descriptions = []
 
@@ -219,6 +242,8 @@ async def main():
             job_description = parse_html(url)
             job_descriptions.append(job_description)
 
+    logging.info(f"Retrieved {len(job_descriptions)} jobs.")
+
     job_analyzer = JobFitAnalyzerWrapper(mode, **config)
     rate_limiter = Limiter(float(config["model_requests_per_second"]))
 
@@ -226,19 +251,27 @@ async def main():
         rate_limiter.wrap(job_analyzer.analyze(job_description, resume))
         for job_description in job_descriptions
     ]
+    logging.info("Analyzing job descriptions...")
     analyses = await asyncio.gather(*analysis_jobs)
+    logging.info("Done analyzing jobs descriptions.")
+
     job_filter = JobFilter(**config)
+    logging.info("Filtering jobs...")
     filtered_jobs = job_filter.filter_jobs(jobs, analyses)
+    logging.info(f"After filtering, {len(filtered_jobs)} jobs remain.")
 
     job_list_summary = create_summary(filtered_jobs)
 
     body = f"Here is your daily jobs list.\n\n{job_list_summary}"
 
+    logging.info("Emailing job summary...")
     send_email(
         subject="Your Daily Jobs",
         body=body,
         **config
     )
+    logging.info("Done emailing job summary.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
