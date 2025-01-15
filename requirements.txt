@@ -12,3 +12,4 @@ aiometer==0.5.0
 asynciolimiter==1.1.1
 mailslurp-client==15.19.22
 google-cloud-storage==2.19.0
+google-cloud-secret-manager==2.22.0
