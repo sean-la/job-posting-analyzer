@@ -29,6 +29,6 @@ docker run \
   -e GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json \
   -e GOOGLE_CLOUD_PROJECT="$GOOGLE_CLOUD_PROJECT" \
   -e SENDER_PASSWORD="$SENDER_PASSWORD" \
-  ghcr.io/sean-la/job-posting-analyzer:latest \
+  docker.io/shiyanra/job-posting-analyzer:latest \
   --config "./data/config.json" \
   --resume "./data/resume.pdf"
