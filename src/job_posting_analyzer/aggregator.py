@@ -14,7 +14,7 @@ from asynciolimiter import Limiter
 from google.cloud import storage, secretmanager
 from google.api_core import exceptions
 
-from analyzer import JobFitAnalyzer, JobDuplicateRemover
+from analyzer import JobFitAnalyzer
 from mail import send_email
 
 
@@ -131,18 +131,6 @@ def read_gcs(uri, as_bytes=False):
         raise e
 
 
-
-class JobDuplicateRemoverWrapper():
-
-    def __init__(self, model="gemini-1.5-pro"):
-        llm = ChatGoogleGenerativeAI(model=model)
-        self._duplicate_remover = JobDuplicateRemover(llm)
-
-    def remove_duplicates(self, job_list: str):
-        return self._duplicate_remover.remove_job_duplicates(job_list)
-
-
-
 class JobFitAnalyzerWrapper():
 
     def __init__(self, model="gemini-1.5-pro", **kwargs):
@@ -151,8 +139,8 @@ class JobFitAnalyzerWrapper():
         self._analyzer = JobFitAnalyzer(llm)
 
 
-    async def analyze(self, job_description, resume):
-        analysis = self._analyzer.analyze_fit(job_description, resume)
+    async def analyze(self, job_description, job_preferences, resume):
+        analysis = self._analyzer.analyze_fit(job_description, job_preferences, resume)
         return analysis
 
 
@@ -189,12 +177,11 @@ class JobBoard:
 
 class JobFilter:
 
-    def __init__(self, job_id_dir="/var/tmp/jobs", ignore_job_id=False, bucket=None,
+    def __init__(self, job_id_dir="var/tmp/jobs", ignore_job_id=False, bucket=None,
                  overall_match_percentage=80, **kwargs):
         self._job_id_dir = job_id_dir
         self._bucket = bucket
         self._filter_rules = [
-            lambda job, analysis: analysis.remote_in_canada,
             lambda job, analysis: analysis.overall_match_percentage > overall_match_percentage,
         ]
         self._ignore_job_id = ignore_job_id
@@ -263,8 +250,6 @@ async def main():
     if args.resume:
         config["resume"] = args.resume
     
-    resume = read_pdf(config["resume"])
-
     logging.info("Retrieving jobs...")
     job_board_configs = config["job_boards"]
     job_descriptions = []
@@ -277,16 +262,22 @@ async def main():
 
         for job in jobs:
             url = job["redirect_url"]
-            job_description = parse_html(url)
-            job_descriptions.append(job_description)
+            try:
+                job_description = parse_html(url)
+                job_descriptions.append(job_description)
+            except:
+                pass
 
     logging.info(f"Retrieved {len(job_descriptions)} jobs.")
 
     job_analyzer = JobFitAnalyzerWrapper(**config)
     rate_limiter = Limiter(float(config["model_requests_per_second"]))
 
+    resume = read_pdf(config["resume"])
+    job_preferences = config["job_preferences"]
+
     analysis_jobs = [
-        rate_limiter.wrap(job_analyzer.analyze(job_description, resume))
+        rate_limiter.wrap(job_analyzer.analyze(job_description, job_preferences, resume))
         for job_description in job_descriptions
     ]
     logging.info("Analyzing job descriptions...")
