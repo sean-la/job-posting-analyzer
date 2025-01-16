@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [ "main" ]
 
-env:
-  # Change these variables as needed
-  DOCKER_HUB_REPO: username/repository
-  IMAGE_TAG: latest
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
