@@ -269,6 +269,7 @@ async def main():
             except:
                 pass
 
+    num_retrieved_jobs = len(job_descriptions)
     logging.info(f"Retrieved {len(job_descriptions)} jobs.")
 
     job_analyzer = JobFitAnalyzerWrapper(**config)
@@ -288,11 +289,13 @@ async def main():
     job_filter = JobFilter(**config)
     logging.info("Filtering jobs...")
     filtered_jobs = job_filter.filter_jobs(jobs, analyses)
+
+    num_filtered_jobs = len(filtered_jobs)
     logging.info(f"After filtering, {len(filtered_jobs)} jobs remain.")
 
     job_list_summary = create_summary(filtered_jobs)
 
-    body = f"Here is your daily jobs list.\n\n{job_list_summary}"
+    body = f"Here is your daily jobs list. {num_filtered_jobs}/{num_retrieved_jobs} remained after filtering.\n\n{job_list_summary}"
 
     logging.info("Emailing job summary...")
     send_email(
