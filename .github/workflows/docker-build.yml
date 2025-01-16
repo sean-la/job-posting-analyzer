@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  # Change these variables as needed
+  DOCKER_HUB_REPO: ${{ env.DOCKER_HUB_REPO }}
+  IMAGE_TAG: ${{ env.IMAGE_TAG }}
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -28,4 +33,6 @@ jobs:
       with:
         context: .
         push: true
-        tags: "${{ env.DOCKER_HUB_REPO }}:${{ env.IMAGE_TAG }}"
+        tags: ${{ env.DOCKER_HUB_REPO }}:${{ env.IMAGE_TAG }}
+        cache-from: type=registry,ref=${{ env.DOCKER_HUB_REPO }}:buildcache
+        cache-to: type=registry,ref=${{ env.DOCKER_HUB_REPO }}:buildcache,mode=max
