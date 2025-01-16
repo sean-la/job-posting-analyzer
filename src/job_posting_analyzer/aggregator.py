@@ -255,10 +255,11 @@ async def main():
     job_descriptions = []
 
     for job_board_config in job_board_configs:
-        job_board = JobBoard(job_board_config["job_board_api_url"])
+        api_url = job_board_config["job_board_api_url"]
+        job_board = JobBoard(api_url)
         jobs = job_board.get_jobs(job_board_config["job_board_api_params"])
 
-        logging.debug(f"Got {len(jobs)} jobs")
+        logging.info(f"Got {len(jobs)} jobs from {api_url}.")
 
         for job in jobs:
             url = job["redirect_url"]
