@@ -85,6 +85,6 @@ class JobFitAnalyzer:
             logging.debug(f"Parsed response: {parsed_response}")
         
             return parsed_response
-        except exceptions.ResourceExhausted as e:
+        except Exception as e:
             logging.error(e)
             pass
