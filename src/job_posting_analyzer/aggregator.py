@@ -98,11 +98,12 @@ def parse_html(url):
 
 def create_summary(jobs):
     summary = ""
-    for job in jobs:
+    for job, analysis in jobs:
         summary += (f"Job: {job["title"]}\n")
         summary += (f"Company: {job["company"]["display_name"]}\n")
         summary += (f"Date posted: {job["created"]}\n")
         summary += (f"URL: {job["redirect_url"]}\n")
+        summary += (f"Summary: {analysis.summary}\n")
         summary += ("\n")
     return summary
 
@@ -228,7 +229,7 @@ class JobFilter:
 
     def filter_jobs(self, jobs, analyses):
         filtered_jobs = [
-            job
+            (job, analysis)
             for job, analysis in zip(jobs, analyses)
             if analysis is not None \
                 and not self._job_exists(job) \
@@ -257,20 +258,22 @@ async def main():
     
     logging.info("Retrieving jobs...")
     job_board_configs = config["job_boards"]
+    jobs = []
     job_descriptions = []
 
     for job_board_config in job_board_configs:
         api_url = job_board_config["job_board_api_url"]
         job_board = JobBoard(api_url)
-        jobs = job_board.get_jobs(job_board_config["job_board_api_params"])
+        job_board_jobs = job_board.get_jobs(job_board_config["job_board_api_params"])
 
-        logging.info(f"Got {len(jobs)} jobs from {api_url}.")
+        logging.info(f"Got {len(job_board_jobs)} jobs from {api_url}.")
 
-        for job in jobs:
+        for job in job_board_jobs:
             url = job["redirect_url"]
             try:
                 job_description = parse_html(url)
                 job_descriptions.append(job_description)
+                jobs.append(job)
             except:
                 pass
 
@@ -291,6 +294,12 @@ async def main():
     analyses = await asyncio.gather(*analysis_jobs)
     logging.info("Done analyzing jobs descriptions.")
 
+    if len(analyses) != len(job_descriptions):
+        raise Exception(
+            f"{len(analyses)} analyses returned, but " \
+            + f"{len(job_descriptions)} jobs were given."
+        )
+
     job_filter = JobFilter(
         ignore_job_id=args.ignore_job_id,
         **config
@@ -303,7 +312,7 @@ async def main():
 
     job_list_summary = create_summary(filtered_jobs)
 
-    body = f"Here is your daily jobs list. {num_filtered_jobs}/{num_retrieved_jobs} remained after filtering.\n\n{job_list_summary}"
+    body = f"Here is your daily jobs list. {num_filtered_jobs}/{num_retrieved_jobs} jobs remained after filtering.\n\n{job_list_summary}"
 
     logging.info("Emailing job summary...")
     send_email(
