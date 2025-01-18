@@ -28,6 +28,6 @@ jobs:
       with:
         context: .
         push: true
-        tags: ${{ env.DOCKER_HUB_REPO }}:${{ env.IMAGE_TAG }}
-        cache-from: type=registry,ref=${{ env.DOCKER_HUB_REPO }}:buildcache
-        cache-to: type=registry,ref=${{ env.DOCKER_HUB_REPO }}:buildcache,mode=max
+        tags: ${{ vars.DOCKER_HUB_REPO }}:${{ vars.IMAGE_TAG }}
+        cache-from: type=registry,ref=${{ vars.DOCKER_HUB_REPO }}:buildcache
+        cache-to: type=registry,ref=${{ vars.DOCKER_HUB_REPO }}:buildcache,mode=max
