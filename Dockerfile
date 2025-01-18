@@ -20,4 +20,4 @@ RUN pip install -e .
 RUN mkdir -p /var/tmp/jobs
 
 # Command to run the application (entrypoint)
-ENTRYPOINT [ "python", "src/job_posting_analyzer/aggregator.py" ]
+ENTRYPOINT [ "python", "scripts/entrypoint.py" ]
