@@ -30,4 +30,6 @@ docker run \
   -e GOOGLE_CLOUD_PROJECT="$GOOGLE_CLOUD_PROJECT" \
   job-posting-analyzer:dev \
   --config "./data/config.json" \
-  --resume "./data/resume.pdf"
+  --resume "./data/resume.pdf" \
+  --loglevel DEBUG \
+  --ignore_job_id

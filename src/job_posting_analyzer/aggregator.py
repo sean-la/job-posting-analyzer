@@ -24,6 +24,8 @@ def setup_parser():
     parser.add_argument("--config", type=str, required=True, help="path to config")
     parser.add_argument("--resume", type=str, required=False, help="path to resume")
     parser.add_argument("--ignore_job_id", action="store_true", default=False, help="")
+    parser.add_argument("--loglevel", type=str, choices=["INFO", "DEBUG"], default="INFO",
+                        help="logging level")
     
     return parser
 
@@ -213,21 +215,24 @@ class JobFilter:
 
 
     def _job_exists(self, job):
-        job_id = job["id"]
-        if self._bucket is not None and len(self._bucket) > 0:
-            return self._job_exists_gcs(job_id)
+        if self._ignore_job_id:
+            logging.debug("Ignored job id")
+            return False
         else:
-            return self._job_exists_local(job_id)
+            job_id = job["id"]
+            if self._bucket is not None and len(self._bucket) > 0:
+                return self._job_exists_gcs(job_id)
+            else:
+                return self._job_exists_local(job_id)
 
 
     def filter_jobs(self, jobs, analyses):
         filtered_jobs = [
             job
             for job, analysis in zip(jobs, analyses)
-            if analysis is not None and not self._job_exists(job) and all([
-                filter_rule(job, analysis)
-                for filter_rule in self._filter_rules
-            ])
+            if analysis is not None \
+                and not self._job_exists(job) \
+                and all([filter_rule(job, analysis) for filter_rule in self._filter_rules])
         ]
         return filtered_jobs
 
@@ -238,7 +243,7 @@ async def main():
     args = parser.parse_args()
 
     logging.basicConfig(
-        level=logging.INFO,
+        level=args.loglevel,
         format='%(asctime)s - %(levelname)s - %(message)s',
     )
 
@@ -286,7 +291,10 @@ async def main():
     analyses = await asyncio.gather(*analysis_jobs)
     logging.info("Done analyzing jobs descriptions.")
 
-    job_filter = JobFilter(**config)
+    job_filter = JobFilter(
+        ignore_job_id=args.ignore_job_id,
+        **config
+    )
     logging.info("Filtering jobs...")
     filtered_jobs = job_filter.filter_jobs(jobs, analyses)
 

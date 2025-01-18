@@ -1,8 +1,10 @@
-import logging
+import logging 
+
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import PydanticOutputParser
+from langchain.chains import LLMChain
+from langchain_core.runnables import RunnablePassthrough
 from pydantic import BaseModel, Field
-from typing import List
 
 
 
@@ -21,9 +23,21 @@ class JobFitAnalysis(BaseModel):
 
 class JobFitAnalyzer:
     def __init__(self, llm):
-        self._llm = llm        
+        cleaning_prompt = ChatPromptTemplate.from_template(
+            """
+            The following is text scraped from a webpage for a job description. 
+            It has a lots of junk words, please remove all junk words and keep only the job description: 
+            Job description: {job_description} 
+            """
+        )
+        self._cleaning_chain = (
+            ( lambda job_description: {"job_description": job_description})
+            | cleaning_prompt
+            | llm        
+        )
+
         self._output_parser = PydanticOutputParser(pydantic_object=JobFitAnalysis)
-        self._prompt = ChatPromptTemplate.from_messages([
+        analyzer_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are an expert hiring manager and resume analyst. 
             Analyze the provided resume and the job seeker's preferences
             against the job description to determine fit.
@@ -50,22 +64,26 @@ class JobFitAnalyzer:
             
             Please analyze the fit between this resume, job preferences, and job description.""")
         ])
+        self._analysis_chain = (
+            analyzer_prompt
+            | llm
+            | (lambda output: output.content)
+            | self._output_parser
+        )
 
 
     def analyze_fit(self, job_description: str, job_preferences: str, resume: str) -> str:
         """Analyze how well a resume matches a job description."""
-        formatted_prompt = self._prompt.format_messages(
-            format_instructions=self._output_parser.get_format_instructions(),
-            job_description=job_description,
-            job_preferences=job_preferences,
-            resume=resume
-        )
-        
         # Get the response from the LLM
         try:
-            response = self._llm.invoke(formatted_prompt).content
-            parsed_response = self._output_parser.parse(response)
+            parsed_response = self._analysis_chain.invoke({
+                'format_instructions': self._output_parser.get_format_instructions(),
+                'job_description': self._cleaning_chain.invoke(job_description),
+                'job_preferences': job_preferences,
+                'resume': resume
+            })
+            logging.debug(f"Parsed response: {parsed_response}")
         
             return parsed_response
-        except:
-            pass
+        except Exception as e:
+            raise e
