@@ -5,7 +5,7 @@ import asyncio
 from asynciolimiter import Limiter
 
 from job_posting_analyzer.aggregator import (
-    retrieve_sender_password,
+    retrieve_env_variable_or_secret,
     read_config,
     read_pdf,
     parse_html,
@@ -41,7 +41,11 @@ async def main():
     config = read_config(args.config)
 
     if "sender_password" not in config:
-        config["sender_password"] = retrieve_sender_password(config["project_id"])
+        config["sender_password"] = retrieve_env_variable_or_secret(
+            env_variable="SENDER_PASSWORD",
+            secret_name="sender-password",
+            project_id=config["project_id"]
+        )
 
     if args.resume:
         config["resume"] = args.resume

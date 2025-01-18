@@ -14,32 +14,36 @@ from google.api_core import exceptions
 from .analyzer import JobFitAnalyzer
 
 
-def retrieve_sender_password(project_id):
-    if "SENDER_PASSWORD" in os.environ:
-        logging.info("Retrieved sender password from environment variables.")
-        return os.environ["SENDER_PASSWORD"]
-    else:
-        try:
-            # Create the Secret Manager client
-            client = secretmanager.SecretManagerServiceClient()
-        
-            # Build the resource name
-            name = f"projects/{project_id}/secrets/sender-password/versions/latest"
-        
-            # Access the secret version
-            response = client.access_secret_version(request={"name": name})
 
-            logging.info("Retrieved sender password from GCP secret manager.")
-        
-            # Return the decoded payload
-            return response.payload.data.decode("UTF-8")
-        
-        except exceptions.PermissionDenied:
-            raise Exception("Permission denied. Check your authentication and IAM roles.")
-        except exceptions.NotFound:
-            raise Exception(f"Secret `sender-password` not found in project {project_id}")
-        except Exception as e:
-            raise Exception(f"Error accessing secret: {str(e)}")
+def retrieve_secret(project_id, secret_name, version="latest"):
+    # Create the Secret Manager client
+    try:
+        client = secretmanager.SecretManagerServiceClient()
+    
+        # Build the resource name
+        name = f"projects/{project_id}/secrets/{secret_name}/versions/{version}"
+    
+        # Access the secret version
+        response = client.access_secret_version(request={"name": name})
+
+        logging.debug(f"Retrieved {secret_name} from GCP secret manager.")
+    
+        # Return the decoded payload
+        return response.payload.data.decode("UTF-8")
+    except exceptions.PermissionDenied:
+        raise Exception("Permission denied. Check your authentication and IAM roles.")
+    except exceptions.NotFound:
+        raise Exception(f"Secret `sender-password` not found in project {project_id}")
+    except Exception as e:
+        raise Exception(f"Error accessing secret: {str(e)}")
+
+
+def retrieve_env_variable_or_secret(env_variable, secret_name, project_id):
+    if env_variable in os.environ:
+        logging.debug(f"Retrieved {env_variable} from environment variables.")
+        return os.environ[env_variable]
+    else:
+        return retrieve_secret(project_id, secret_name=secret_name)
     
 
 def is_gcs_object(path):
@@ -118,11 +122,19 @@ def read_gcs(uri, as_bytes=False):
         raise e
 
 
+
 class JobFitAnalyzerWrapper():
 
-    def __init__(self, model="gemini-1.5-pro", **kwargs):
+    def __init__(self, project_id, model="gemini-1.5-pro", **kwargs):
         # Create an instance of the LLM, using the 'gemini-pro' model 
-        llm = ChatGoogleGenerativeAI(model=model)
+        llm = ChatGoogleGenerativeAI(
+            model=model,
+            google_api_key=retrieve_env_variable_or_secret(
+                env_variable="GOOGLE_API_KEY",
+                secret_name="google-api-key",
+                project_id=project_id
+            )
+        )
         self._analyzer = JobFitAnalyzer(llm)
 
 

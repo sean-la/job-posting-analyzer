@@ -2,9 +2,8 @@ import logging
 
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import PydanticOutputParser
-from langchain.chains import LLMChain
-from langchain_core.runnables import RunnablePassthrough
 from pydantic import BaseModel, Field
+
 
 
 
