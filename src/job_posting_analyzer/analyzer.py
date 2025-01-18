@@ -3,6 +3,7 @@ import logging
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
+from google.api_core import exceptions
 
 
 
@@ -84,5 +85,6 @@ class JobFitAnalyzer:
             logging.debug(f"Parsed response: {parsed_response}")
         
             return parsed_response
-        except Exception as e:
-            raise e
+        except exceptions.ResourceExhausted as e:
+            logging.error(e)
+            pass
