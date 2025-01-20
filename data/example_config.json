@@ -1,5 +1,4 @@
 {
-    "overall_match_percentage": 70,
     "model": "gemini-1.5-flash",
     "model_requests_per_second": 0.1,
     "recipient_address": "",
@@ -8,7 +7,7 @@
     "bucket": "",
     "resume": "",
     "job_preferences": "I'm willing to work hybrid roles if the position is located in Vancouver, BC, Canada. Otherwise, I strongly prefer remote jobs that can be performed in Canada.",
-    "save_analysis": true,
+    "overall_match_percentage": 70,
     "job_boards": [
         {
             "job_board_api_url": "https://api.adzuna.com/v1/api/jobs/ca/search/1",
