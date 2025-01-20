@@ -1,4 +1,5 @@
 import logging
+import copy
 import requests
 import os
 import json
@@ -91,7 +92,7 @@ def create_summary(jobs):
         summary += (f"Company: {job["company"]["display_name"]}\n")
         summary += (f"Date posted: {job["created"]}\n")
         summary += (f"URL: {job["redirect_url"]}\n")
-        summary += (f"Summary: {analysis.summary}\n")
+        summary += (f"Summary: {analysis["response"].summary}\n")
         summary += ("\n")
     return summary
 
@@ -177,21 +178,31 @@ class JobBoard:
 class JobFilter:
 
     def __init__(self, job_id_dir="var/tmp/jobs", ignore_job_id=False, bucket=None,
-                 overall_match_percentage=80, **kwargs):
+                 overall_match_percentage=80, save_analysis=False, **kwargs):
         self._job_id_dir = job_id_dir
         self._bucket = bucket
         self._filter_rules = [
             lambda job, analysis: analysis.overall_match_percentage > overall_match_percentage,
         ]
         self._ignore_job_id = ignore_job_id
+        self._save_analysis = save_analysis
 
 
-    def _job_exists_local(self, job_id):
-        job_id_path = f"{self._job_id_dir}/{job_id}"
+    def _convert_analysis_to_json(self, analysis):
+        analysis_dict = copy.deepcopy(analysis)
+        del analysis_dict["parsed_response"]
+        return json.dumps(analysis_dict)
+
+
+    def _job_exists_local(self, job_id, analysis):
+        job_id_path = f"{self._job_id_dir}/{job_id}.json"
         if self._ignore_job_id:
             return False
         if not os.path.exists(job_id_path):
-            content = ""
+            if self._save_analysis:
+                content = self._convert_analysis_to_json(analysis)
+            else:
+                content = ""
             with open(job_id_path, 'w') as f:
                 f.write(content)
             return False
@@ -199,28 +210,32 @@ class JobFilter:
             return True
 
 
-    def _job_exists_gcs(self, job_id):
+    def _job_exists_gcs(self, job_id, analysis):
         storage_client = storage.Client()
         bucket = storage_client.bucket(self._bucket)
-        object_name = f"{self._job_id_dir}/{job_id}"
+        object_name = f"{self._job_id_dir}/{job_id}.json"
         blob = bucket.blob(object_name)
         if not blob.exists():
-            blob.upload_from_string("")
+            if self._save_analysis:
+                blob_content = self._convert_analysis_to_json(analysis)
+            else:
+                blob_content = ""
+            blob.upload_from_string(blob_content)
             return False
         else:
             return True
 
 
-    def _job_exists(self, job):
+    def _job_exists(self, job, analysis):
         if self._ignore_job_id:
             logging.debug("Ignored job id")
             return False
         else:
             job_id = job["id"]
             if self._bucket is not None and len(self._bucket) > 0:
-                return self._job_exists_gcs(job_id)
+                return self._job_exists_gcs(job_id, analysis)
             else:
-                return self._job_exists_local(job_id)
+                return self._job_exists_local(job_id, analysis)
 
 
     def filter_jobs(self, jobs, analyses):
@@ -228,8 +243,8 @@ class JobFilter:
             (job, analysis)
             for job, analysis in zip(jobs, analyses)
             if analysis is not None \
-                and not self._job_exists(job) \
-                and all([filter_rule(job, analysis) for filter_rule in self._filter_rules])
+                and not self._job_exists(job, analysis) \
+                and all([filter_rule(job, analysis["parsed_response"]) for filter_rule in self._filter_rules])
         ]
         return filtered_jobs
 

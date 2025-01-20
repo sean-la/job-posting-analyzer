@@ -22,53 +22,25 @@ class JobFitAnalysis(BaseModel):
 
 
 class JobFitAnalyzer:
-    def __init__(self, llm):
-        cleaning_prompt = ChatPromptTemplate.from_template(
-            """
-            The following is text scraped from a webpage for a job description. 
-            It has a lots of junk words, please remove all junk words and keep only the job description: 
-            Job description: {job_description} 
-            """
-        )
+    def __init__(self, llm, cleaning_prompt_path="res/cleaning_prompt.txt",
+                 analysis_prompt_path="res/analysis_prompt.txt"):
+        with open(cleaning_prompt_path,'r') as f:
+            cleaning_prompt_text = f.read()
+        cleaning_prompt = ChatPromptTemplate.from_template(cleaning_prompt_text)
         self._cleaning_chain = (
-            ( lambda job_description: {"job_description": job_description})
+            (lambda job_description: {"job_description": job_description})
             | cleaning_prompt
             | llm        
         )
 
+        with open(analysis_prompt_path,'r') as f:
+            analysis_prompt_text = f.read()
         self._output_parser = PydanticOutputParser(pydantic_object=JobFitAnalysis)
-        analyzer_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are an expert hiring manager and resume analyst. 
-            Analyze the provided resume and the job seeker's preferences
-            against the job description to determine fit.
-            Be thorough but fair in your analysis.
-
-            Focus on:
-            1. Technical skills match
-            2. Experience level alignment
-            3. Role-specific requirements
-            4. Soft skills where mentioned
-            5. Industry experience
-            6. Whether this role matches the job seeker's preferences.
-
-            Provide your analysis in a structured format.
-            {format_instructions}"""),
-            ("user", """Job Description:
-            {job_description}
-
-            Here is what the job seeker's preferences for their next role:
-            {job_preferences}
-            
-            Here is their resume:
-            {resume}
-            
-            Please analyze the fit between this resume, job preferences, and job description.""")
-        ])
+        self._analyzer_prompt = ChatPromptTemplate.from_template(analysis_prompt_text) 
         self._analysis_chain = (
-            analyzer_prompt
+            self._analyzer_prompt
             | llm
             | (lambda output: output.content)
-            | self._output_parser
         )
 
 
@@ -76,15 +48,22 @@ class JobFitAnalyzer:
         """Analyze how well a resume matches a job description."""
         # Get the response from the LLM
         try:
-            parsed_response = self._analysis_chain.invoke({
+            input_args = {
                 'format_instructions': self._output_parser.get_format_instructions(),
-                'job_description': self._cleaning_chain.invoke(job_description),
+                'job_description': self._cleaning_chain.invoke(job_description).content,
                 'job_preferences': job_preferences,
                 'resume': resume
-            })
+            }
+            response = self._analysis_chain.invoke(input_args)
+            parsed_response = self._output_parser.invoke(response)
             logging.debug(f"Parsed response: {parsed_response}")
-        
-            return parsed_response
+
+            output = {
+                "prompt": self._analyzer_prompt.format(**input_args),
+                "response": response,
+                "parsed_response": parsed_response
+            }
+            return output
         except Exception as e:
             logging.error(e)
             pass

@@ -1,0 +1,3 @@
+The following is text scraped from a webpage for a job description. 
+It has a lots of junk words, please remove all junk words and keep only the job description: 
+Job description: {job_description} 
