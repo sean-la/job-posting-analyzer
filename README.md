@@ -50,6 +50,8 @@ Build the Docker image under the image name `job-posting-analyzer:dev` using the
 ./scripts/docker_build.sh
 ```
 
+## Usage
+
 ### Running the image
 
 You can display help menu using command
